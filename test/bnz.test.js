@@ -298,13 +298,45 @@ test('isAnonymousBuganizerSession detects signed-out or expired Buganizer sessio
   // Missing XSRF token
   assert.equal(isAnonymousBuganizerSession([['victorgomes@chromium.org'], null, '']), true);
 
-  // Authenticated session
+  // Authenticated session (legacy .toJSON() returning array)
   const authSession = [
     { toJSON: () => ['victorgomes@chromium.org', null, 'Victor Gomes', false] },
     null,
     'xsrf_tok_123',
   ];
   assert.equal(isAnonymousBuganizerSession(authSession), false);
+
+  // Authenticated session (Closure JSPB wrapper object hydrated in-place)
+  const wrappedAuthSession = [
+    {
+      internalArrayDoNotAccessOrElseMightBeUndefinedWhoKnows: [
+        'victorgomes@chromium.org',
+        null,
+        '0',
+        false,
+        'PUBLIC',
+      ],
+    },
+    null,
+    'xsrf_tok_456',
+  ];
+  assert.equal(isAnonymousBuganizerSession(wrappedAuthSession), false);
+
+  // Anonymous session inside Closure JSPB wrapper object
+  const wrappedAnonSession = [
+    {
+      internalArrayDoNotAccessOrElseMightBeUndefinedWhoKnows: [
+        null,
+        null,
+        '',
+        true,
+        'ANONYMOUS',
+      ],
+    },
+    null,
+    'xsrf_tok_789',
+  ];
+  assert.equal(isAnonymousBuganizerSession(wrappedAnonSession), true);
 
   // Non-Buganizer page without buganizerSessionJspb
   assert.equal(isAnonymousBuganizerSession(undefined), false);
