@@ -76,10 +76,17 @@ bnz login --export=corp             # Buganizer only (preserves existing CF cook
 bnz cf login --export=corp          # ClusterFuzz only (preserves existing Buganizer cookies on `corp`)
 ```
 
-`--export` never exports `~/.config/bnz/profile` directly, so the local and
+By default, `--export` never exports `~/.config/bnz/profile` directly, so the local and
 remote machines each get their own independent Google `SID` / `__Secure-1PSIDTS`
-cookie chain and never invalidate each other during cookie rotation. You can
-also pipe or save session JSON manually with `bnz login --export` and
+cookie chain and never invalidate each other during cookie rotation. If you only
+use your local machine to mint auth and never run `bnz` locally, pass
+`--no-isolate` to reuse `~/.config/bnz/profile` and save clicks on re-auth:
+
+```sh
+bnz login --export=corp --no-isolate
+```
+
+You can also pipe or save session JSON manually with `bnz login --export` and
 `bnz login --import[=FILE]`.
 
 ## Usage

@@ -12,7 +12,7 @@ import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  AuthRequiredError, exportSessionState, importSessionState,
+  AuthRequiredError, PROFILE_DIR, exportSessionState, importSessionState,
   loginInteractive, openSession, pushSessionOverSsh,
 } from './lib/browser.js';
 import {
@@ -42,9 +42,11 @@ function usage() {
 
 Usage:
   bnz login [--with-cf]                  Interactive Google SSO for issuetracker (and clusterfuzz).
-  bnz login [--with-cf] --export[=HOST]  Mint an isolated remote session and push to SSH HOST (or stdout).
+  bnz login [--with-cf] --export[=HOST] [--no-isolate]
+                                         Mint an isolated remote session and push to SSH HOST (or stdout).
   bnz login --import[=FILE]              Import session cookies from stdin (or FILE).
-  bnz cf login [--export[=HOST]]         Interactive Google SSO for clusterfuzz (local or isolated export).
+  bnz cf login [--export[=HOST] [--no-isolate]]
+                                         Interactive Google SSO for clusterfuzz (local or isolated export).
 
   bnz <id|url> [<id|url>...]             Fetch one or more issues.
   bnz fields <id|url> [...] [--full]     List standard and custom fields + allowed values.
@@ -135,6 +137,8 @@ Flags:
   --with-cf                              login: open both issuetracker and clusterfuzz in one browser.
   --export[=SSH_HOST]                    login: mint an isolated remote session (never shares local
                                          profile) and push cookies to SSH_HOST (or JSON to stdout).
+  --no-isolate                           login --export: reuse ~/.config/bnz/profile instead of an
+                                         isolated profile (only safe if local bnz is not used).
   --import[=FILE]                        login: import session JSON from stdin (or FILE).
   --no-color                             Disable ANSI color (also honors NO_COLOR).
   -h, --help                             Show this help.
@@ -198,6 +202,7 @@ function parseArgs(argv) {
     commentFile: null,
     markdown: true,
     dryRun: false,
+    noIsolate: false,
   };
 
   const setCloseStatus = (val, fromShorthand = false) => {
@@ -300,6 +305,7 @@ function parseArgs(argv) {
     else if (a === '--with-cf') args.withCf = true;
     else if (a === '--export') args.export = '-';
     else if (a.startsWith('--export=')) args.export = a.slice('--export='.length);
+    else if (a === '--no-isolate') args.noIsolate = true;
     else if (a === '--import') args.import = '-';
     else if (a.startsWith('--import=')) args.import = a.slice('--import='.length);
     else if (a.startsWith('--format=')) args.format = a.slice('--format='.length);
@@ -517,6 +523,9 @@ function parseArgs(argv) {
     const isLogin = cmd === 'login' || (cmd === 'cf' && args._[1] === 'login');
     if ((args.export || args.import) && !isLogin) {
       throw new Error('--export and --import require login');
+    }
+    if (args.noIsolate && !args.export) {
+      throw new Error('--no-isolate requires --export');
     }
     if (args.withCf && cmd !== 'login') {
       throw new Error('--with-cf requires `bnz login`');
@@ -1559,7 +1568,10 @@ async function loginCmd(startUrls, args) {
     return;
   }
   if (args.export) {
-    const state = await exportSessionState({ startUrls });
+    const state = await exportSessionState({
+      startUrls,
+      ...(args.noIsolate ? { profileDir: PROFILE_DIR } : {}),
+    });
     if (args.export === '-') {
       process.stdout.write(JSON.stringify(state) + '\n');
     } else {

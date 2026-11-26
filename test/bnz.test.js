@@ -119,9 +119,12 @@ test('sanitizeDeep recurses', () => {
 test('parseArgs handles login --export and --import flags and errors', () => {
   assert.equal(parseArgs(['login', '--export']).export, '-');
   assert.equal(parseArgs(['login', '--export=corp']).export, 'corp');
+  assert.equal(parseArgs(['login', '--export=corp']).noIsolate, false);
+  assert.equal(parseArgs(['login', '--export=corp', '--no-isolate']).noIsolate, true);
   assert.equal(parseArgs(['login', '--with-cf']).withCf, true);
   assert.equal(parseArgs(['login', '--with-cf', '--export=corp']).withCf, true);
   assert.equal(parseArgs(['cf', 'login', '--export=user@corp']).export, 'user@corp');
+  assert.equal(parseArgs(['cf', 'login', '--export', '--no-isolate']).noIsolate, true);
   assert.equal(parseArgs(['login', '--import']).import, '-');
   assert.equal(parseArgs(['login', '--import=/tmp/s.json']).import, '/tmp/s.json');
 
@@ -132,6 +135,8 @@ test('parseArgs handles login --export and --import flags and errors', () => {
   assert.throws(() => parseArgs(['login', '--export=corp', '--import']), /Cannot combine/);
   assert.throws(() => parseArgs(['login', '--with-cf', '--import']), /Cannot combine --with-cf and --import/);
   assert.throws(() => parseArgs(['cf', 'login', '--with-cf']), /--with-cf requires `bnz login`/);
+  assert.throws(() => parseArgs(['login', '--no-isolate']), /--no-isolate requires --export/);
+  assert.throws(() => parseArgs(['12345', '--no-isolate']), /--no-isolate requires --export/);
   assert.throws(() => parseArgs(['12345', '--export=corp']), /require login/);
   assert.throws(() => parseArgs(['login', 'corp']), /Unexpected argument to login/);
 });
